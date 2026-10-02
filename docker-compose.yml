@@ -1,0 +1,15 @@
+services:
+  portal:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DATA_DIR: /data
+      # Optional: set ADMIN_TOKEN to require x-admin-token header on mutating admin APIs
+      # ADMIN_TOKEN: change-me
+    volumes:
+      - portal-data:/data
+    restart: unless-stopped
+
+volumes:
+  portal-data:

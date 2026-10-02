@@ -1,26 +1,159 @@
-@import "tailwindcss";
-
+/* PatternFly brand palette → red (match PF selector specificity) */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --pf-t--global--color--brand--100: var(--pf-t--color--red--40);
+  --pf-t--global--color--brand--200: var(--pf-t--color--red--50);
+  --pf-t--global--color--brand--300: var(--pf-t--color--red--60);
+  --pf-t--global--color--brand--400: var(--pf-t--color--red--70);
+  --pf-t--global--color--brand--500: var(--pf-t--color--red--80);
+  --pf-t--global--color--brand--subtle--100: var(--pf-t--color--red--10);
+  --pf-t--global--color--brand--subtle--200: var(--pf-t--color--red--20);
+  --pf-t--global--color--brand--subtle--300: var(--pf-t--color--red--40);
+  --pf-t--global--color--brand--subtle--400: var(--pf-t--color--red--50);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+:root:where(.pf-v6-theme-dark) {
+  --pf-t--global--dark--color--brand--100: var(--pf-t--color--red--40);
+  --pf-t--global--dark--color--brand--200: var(--pf-t--color--red--30);
+  --pf-t--global--dark--color--brand--300: var(--pf-t--color--red--20);
+  --pf-t--global--dark--color--brand--subtle--100: var(--pf-t--color--red--70);
+  --pf-t--global--dark--color--brand--subtle--200: var(--pf-t--color--red--60);
+  --pf-t--global--dark--color--brand--subtle--300: var(--pf-t--color--red--40);
+  --pf-t--global--color--brand--100: var(--pf-t--color--red--30);
+  --pf-t--global--color--brand--200: var(--pf-t--color--red--40);
+  --pf-t--global--color--brand--300: var(--pf-t--color--red--50);
+  --pf-t--global--color--brand--400: var(--pf-t--color--red--60);
+  --pf-t--global--color--brand--500: var(--pf-t--color--red--70);
+  --pf-t--global--color--brand--subtle--100: var(--pf-t--color--red--80);
+  --pf-t--global--color--brand--subtle--200: var(--pf-t--color--red--70);
+  --pf-t--global--color--brand--subtle--300: var(--pf-t--color--red--50);
+  --pf-t--global--color--brand--subtle--400: var(--pf-t--color--red--40);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Small helpers for portal cards */
+.page-miniature {
+  border-bottom: 1px solid var(--pf-t--global--border--color--default);
+  background: var(--pf-t--global--background--color--secondary--default);
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+.page-miniature__chrome {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.55rem;
+  background: var(--pf-t--global--background--color--secondary--default);
+  border-bottom: 1px solid var(--pf-t--global--border--color--default);
+}
+
+.page-miniature__chrome span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--pf-t--global--border--color--default);
+}
+
+.page-miniature__chrome span:nth-child(1) {
+  background: #ff5f57;
+}
+.page-miniature__chrome span:nth-child(2) {
+  background: #febc2e;
+}
+.page-miniature__chrome span:nth-child(3) {
+  background: #28c840;
+}
+
+.page-miniature__chrome em {
+  margin-left: 0.35rem;
+  font-style: normal;
+  font-size: 0.65rem;
+  color: var(--pf-t--global--text--color--subtle);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.page-miniature__viewport {
+  position: relative;
+  height: 150px;
+  overflow: hidden;
+  background:
+    linear-gradient(
+      135deg,
+      var(--pf-t--global--background--color--secondary--default) 25%,
+      transparent 25%
+    ),
+    linear-gradient(
+      225deg,
+      var(--pf-t--global--background--color--secondary--default) 25%,
+      transparent 25%
+    ),
+    var(--pf-t--global--background--color--primary--default);
+  background-size: 12px 12px;
+  display: grid;
+  place-items: start center;
+  padding: 0.55rem 0.65rem 0;
+}
+
+.page-miniature__shot {
+  width: 220%;
+  max-width: none;
+  height: auto;
+  transform: scale(0.42);
+  transform-origin: top center;
+  border: 1px solid var(--pf-t--global--border--color--default);
+  box-shadow: var(--pf-t--global--box-shadow--sm);
+  background: #fff;
+  border-radius: 2px;
+}
+
+.page-miniature__fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--pf-t--global--color--brand--default);
+  background: var(--pf-t--global--background--color--secondary--default);
+  z-index: 0;
+}
+
+.portal-iframe-wrap {
+  border: 1px solid var(--pf-t--global--border--color--default);
+  background: var(--pf-t--global--background--color--secondary--default);
+  overflow: hidden;
+}
+
+.portal-iframe-wrap iframe {
+  width: 100%;
+  border: 0;
+  display: block;
+  background: var(--pf-t--global--background--color--secondary--default);
+}
+
+.portal-gauge-value {
+  text-align: center;
+  margin-top: -0.25rem;
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: var(--pf-t--global--color--brand--default);
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+  text-align: left;
+  padding: 0.75rem 0.5rem;
+  border-bottom: 1px solid var(--pf-t--global--border--color--default);
+  vertical-align: top;
+}
+
+.admin-table th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--pf-t--global--text--color--subtle);
 }
