@@ -81,6 +81,9 @@ export function AdminClient({
   const [widgetForm, setWidgetForm] = useState({ ...emptyWidget });
   const [editingWidgetId, setEditingWidgetId] = useState<number | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [messageVariant, setMessageVariant] = useState<"success" | "danger">(
+    "success"
+  );
   const [testResult, setTestResult] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
   const [adminToken, setAdminToken] = useState("");
@@ -90,14 +93,43 @@ export function AdminClient({
     if (saved) setAdminToken(saved);
   }, []);
 
+  function rememberToken(token = adminToken) {
+    if (token) localStorage.setItem("portal_admin_token", token);
+    else localStorage.removeItem("portal_admin_token");
+  }
+
   function headers(): HeadersInit {
     const h: Record<string, string> = { "Content-Type": "application/json" };
-    if (adminToken) h["x-admin-token"] = adminToken;
+    const token =
+      adminToken ||
+      (typeof window !== "undefined"
+        ? localStorage.getItem("portal_admin_token") || ""
+        : "");
+    if (token) h["x-admin-token"] = token;
     return h;
   }
 
-  function flash(msg: string) {
+  function flash(msg: string, variant: "success" | "danger" = "success") {
+    setMessageVariant(variant);
     setMessage(msg);
+  }
+
+  async function readError(res: Response, fallback: string) {
+    try {
+      const data = await res.json();
+      if (res.status === 401) {
+        return "Unauthorized — enter the Admin token (Access token) and try again";
+      }
+      return (data?.error as string) || fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  function scrollToId(id: string) {
+    requestAnimationFrame(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }
 
   function groupName(id: number | null | undefined) {
@@ -120,7 +152,8 @@ export function AdminClient({
 
   async function saveLink(e: FormEvent) {
     e.preventDefault();
-    localStorage.setItem("portal_admin_token", adminToken);
+    rememberToken();
+    const wasEditing = editingLinkId;
     const payload = {
       title: linkForm.title,
       url: linkForm.url,
@@ -135,21 +168,22 @@ export function AdminClient({
       auth_password: linkForm.auth_password || null,
     };
     const res = await fetch(
-      editingLinkId ? `/api/links/${editingLinkId}` : "/api/links",
+      wasEditing ? `/api/links/${wasEditing}` : "/api/links",
       {
-        method: editingLinkId ? "PUT" : "POST",
+        method: wasEditing ? "PUT" : "POST",
         headers: headers(),
         body: JSON.stringify(payload),
       }
     );
     if (!res.ok) {
-      flash(`Link error: ${(await res.json()).error || res.status}`);
+      flash(`Link error: ${await readError(res, String(res.status))}`, "danger");
       return;
     }
     setLinkForm({ ...emptyLink });
     setEditingLinkId(null);
+    setTestResult(null);
     await refresh();
-    flash(editingLinkId ? "Link updated" : "Link created");
+    flash(wasEditing ? "Link updated" : "Link created");
   }
 
   function editLink(link: Link) {
@@ -168,6 +202,7 @@ export function AdminClient({
       auth_username: link.auth_username || "",
       auth_password: link.auth_password || "",
     });
+    scrollToId("admin-link-form");
   }
 
   async function testLinkConnection() {
@@ -177,7 +212,7 @@ export function AdminClient({
     }
     setTesting(true);
     setTestResult(null);
-    localStorage.setItem("portal_admin_token", adminToken);
+    rememberToken();
     try {
       const res = await fetch("/api/links/test", {
         method: "POST",
@@ -192,7 +227,13 @@ export function AdminClient({
       });
       const data = await res.json();
       if (!res.ok) {
-        setTestResult(`Test error: ${data.error || res.status}`);
+        setTestResult(
+          `Test error: ${
+            res.status === 401
+              ? "Unauthorized — enter the Admin token"
+              : data.error || res.status
+          }`
+        );
         return;
       }
       setTestResult(
@@ -207,13 +248,19 @@ export function AdminClient({
 
   async function removeLink(id: number) {
     if (!confirm("Delete this link?")) return;
+    rememberToken();
     const res = await fetch(`/api/links/${id}`, {
       method: "DELETE",
       headers: headers(),
     });
     if (!res.ok) {
-      flash("Delete failed");
+      flash(`Delete failed: ${await readError(res, String(res.status))}`, "danger");
       return;
+    }
+    if (editingLinkId === id) {
+      setEditingLinkId(null);
+      setLinkForm({ ...emptyLink });
+      setTestResult(null);
     }
     await refresh();
     flash("Link deleted");
@@ -221,28 +268,29 @@ export function AdminClient({
 
   async function saveGroup(e: FormEvent) {
     e.preventDefault();
-    localStorage.setItem("portal_admin_token", adminToken);
+    rememberToken();
+    const wasEditing = editingGroupId;
     const payload = {
       name: groupForm.name,
       sort_order: Number(groupForm.sort_order) || 0,
       enabled: groupForm.enabled,
     };
     const res = await fetch(
-      editingGroupId ? `/api/groups/${editingGroupId}` : "/api/groups",
+      wasEditing ? `/api/groups/${wasEditing}` : "/api/groups",
       {
-        method: editingGroupId ? "PUT" : "POST",
+        method: wasEditing ? "PUT" : "POST",
         headers: headers(),
         body: JSON.stringify(payload),
       }
     );
     if (!res.ok) {
-      flash(`Group error: ${(await res.json()).error || res.status}`);
+      flash(`Group error: ${await readError(res, String(res.status))}`, "danger");
       return;
     }
     setGroupForm({ ...emptyGroup });
     setEditingGroupId(null);
     await refresh();
-    flash(editingGroupId ? "Group updated" : "Group created");
+    flash(wasEditing ? "Group updated" : "Group created");
   }
 
   function editGroup(group: LinkGroup) {
@@ -252,17 +300,23 @@ export function AdminClient({
       sort_order: group.sort_order,
       enabled: !!group.enabled,
     });
+    scrollToId("admin-group-form");
   }
 
   async function removeGroup(id: number) {
     if (!confirm("Delete this group? Links will become ungrouped.")) return;
+    rememberToken();
     const res = await fetch(`/api/groups/${id}`, {
       method: "DELETE",
       headers: headers(),
     });
     if (!res.ok) {
-      flash("Delete failed");
+      flash(`Delete failed: ${await readError(res, String(res.status))}`, "danger");
       return;
+    }
+    if (editingGroupId === id) {
+      setEditingGroupId(null);
+      setGroupForm({ ...emptyGroup });
     }
     await refresh();
     flash("Group deleted");
@@ -270,14 +324,15 @@ export function AdminClient({
 
   async function saveWidget(e: FormEvent) {
     e.preventDefault();
-    localStorage.setItem("portal_admin_token", adminToken);
+    rememberToken();
     let config: unknown;
     try {
       config = JSON.parse(widgetForm.configText);
     } catch {
-      flash("Invalid JSON config");
+      flash("Invalid JSON config", "danger");
       return;
     }
+    const wasEditing = editingWidgetId;
     const payload = {
       title: widgetForm.title,
       type: widgetForm.type,
@@ -288,21 +343,21 @@ export function AdminClient({
       config_json: JSON.stringify(config),
     };
     const res = await fetch(
-      editingWidgetId ? `/api/widgets/${editingWidgetId}` : "/api/widgets",
+      wasEditing ? `/api/widgets/${wasEditing}` : "/api/widgets",
       {
-        method: editingWidgetId ? "PUT" : "POST",
+        method: wasEditing ? "PUT" : "POST",
         headers: headers(),
         body: JSON.stringify(payload),
       }
     );
     if (!res.ok) {
-      flash(`Widget error: ${(await res.json()).error || res.status}`);
+      flash(`Widget error: ${await readError(res, String(res.status))}`, "danger");
       return;
     }
     setWidgetForm({ ...emptyWidget });
     setEditingWidgetId(null);
     await refresh();
-    flash(editingWidgetId ? "Widget updated" : "Widget created");
+    flash(wasEditing ? "Widget updated" : "Widget created");
   }
 
   function editWidget(widget: Widget) {
@@ -321,17 +376,23 @@ export function AdminClient({
       enabled: !!widget.enabled,
       configText: pretty,
     });
+    scrollToId("admin-widget-form");
   }
 
   async function removeWidget(id: number) {
     if (!confirm("Delete this widget?")) return;
+    rememberToken();
     const res = await fetch(`/api/widgets/${id}`, {
       method: "DELETE",
       headers: headers(),
     });
     if (!res.ok) {
-      flash("Delete failed");
+      flash(`Delete failed: ${await readError(res, String(res.status))}`, "danger");
       return;
+    }
+    if (editingWidgetId === id) {
+      setEditingWidgetId(null);
+      setWidgetForm({ ...emptyWidget });
     }
     await refresh();
     flash("Widget deleted");
@@ -339,14 +400,17 @@ export function AdminClient({
 
   async function saveSettings(e: FormEvent) {
     e.preventDefault();
-    localStorage.setItem("portal_admin_token", adminToken);
+    rememberToken();
     const res = await fetch("/api/settings", {
       method: "PUT",
       headers: headers(),
       body: JSON.stringify(settings),
     });
     if (!res.ok) {
-      flash("Settings save failed");
+      flash(
+        `Settings save failed: ${await readError(res, String(res.status))}`,
+        "danger"
+      );
       return;
     }
     setSettings(await res.json());
@@ -354,12 +418,16 @@ export function AdminClient({
   }
 
   async function runHealthCheck() {
+    rememberToken();
     const res = await fetch("/api/health/check", {
       method: "POST",
       headers: headers(),
     });
     if (!res.ok) {
-      flash("Health check failed");
+      flash(
+        `Health check failed: ${await readError(res, String(res.status))}`,
+        "danger"
+      );
       return;
     }
     await refresh();
@@ -416,7 +484,7 @@ export function AdminClient({
 
       {message && (
         <Alert
-          variant="success"
+          variant={messageVariant}
           title={message}
           className="pf-v6-u-mb-md"
           actionClose={
@@ -431,12 +499,17 @@ export function AdminClient({
             <CardTitle>Access token</CardTitle>
             <CardBody>
               <Content className="pf-v6-u-mb-md">
-                Optional. Only needed if <code>ADMIN_TOKEN</code> is set in the container.
+                Required for create / update / delete when <code>ADMIN_TOKEN</code> is
+                set on the server. Stored in this browser only.
               </Content>
               <TextInput
                 type="password"
                 value={adminToken}
-                onChange={(_e, v) => setAdminToken(v)}
+                onChange={(_e, v) => {
+                  setAdminToken(v);
+                  if (v) localStorage.setItem("portal_admin_token", v);
+                  else localStorage.removeItem("portal_admin_token");
+                }}
                 aria-label="Admin token"
                 placeholder="x-admin-token"
               />
@@ -515,7 +588,7 @@ export function AdminClient({
         </GridItem>
 
         <GridItem span={12}>
-          <Card>
+          <Card id="admin-group-form">
             <CardTitle>
               {editingGroupId ? `Edit group #${editingGroupId}` : "Add link group"}
             </CardTitle>
@@ -638,7 +711,7 @@ export function AdminClient({
         </GridItem>
 
         <GridItem span={12}>
-          <Card>
+          <Card id="admin-link-form">
             <CardTitle>
               {editingLinkId ? `Edit link #${editingLinkId}` : "Add link"}
             </CardTitle>
@@ -736,8 +809,9 @@ export function AdminClient({
                   </GridItem>
                   <GridItem span={12}>
                     <Content component="small" className="pf-v6-u-mb-sm">
-                      Optional HTTP Basic Auth. Credentials are sent when testing,
-                      for health checks, and when opening the link in a new window.
+                      Optional credentials (HTTP Basic Auth or Cockpit). Used for
+                      health checks and auto-login via the portal auth bridge
+                      (<code>/bridge/…</code>) when opening the link.
                     </Content>
                     <Flex spaceItems={{ default: "spaceItemsSm" }} alignItems={{ default: "alignItemsCenter" }}>
                       <FlexItem>
@@ -756,13 +830,12 @@ export function AdminClient({
                           <Button
                             type="button"
                             variant="link"
-                            onClick={() =>
-                              window.open(
-                                `/go/${editingLinkId}`,
-                                "_blank",
-                                "noopener,noreferrer"
-                              )
-                            }
+                            onClick={() => {
+                              const href = linkForm.auth_username
+                                ? `/bridge/${editingLinkId}/`
+                                : `/go/${editingLinkId}`;
+                              window.open(href, "_blank", "noopener,noreferrer");
+                            }}
                           >
                             Open in new window
                           </Button>
@@ -897,7 +970,7 @@ export function AdminClient({
         </GridItem>
 
         <GridItem span={12}>
-          <Card>
+          <Card id="admin-widget-form">
             <CardTitle>
               {editingWidgetId
                 ? `Edit widget #${editingWidgetId}`

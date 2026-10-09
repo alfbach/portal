@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import fs from "fs";
 import path from "path";
+import { normalizeHttpUrl } from "./auth";
 import type { BandwidthSample, HealthStatus, Link, LinkGroup, SettingsMap, Widget } from "./types";
 
 const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
@@ -315,13 +316,13 @@ export function createLink(data: {
     )
     .run(
       data.title,
-      data.url,
+      normalizeHttpUrl(data.url),
       data.description ?? null,
       data.icon_url ?? null,
       data.preview_url ?? null,
       data.sort_order ?? 0,
       data.enabled === false ? 0 : 1,
-      data.health_check_url ?? null,
+      data.health_check_url ? normalizeHttpUrl(data.health_check_url) : null,
       data.group_id ?? null,
       data.auth_username ?? null,
       data.auth_password ?? null
@@ -357,13 +358,17 @@ export function updateLink(
     )
     .run(
       data.title ?? existing.title,
-      data.url ?? existing.url,
+      data.url !== undefined ? normalizeHttpUrl(data.url) : existing.url,
       data.description !== undefined ? data.description : existing.description,
       data.icon_url !== undefined ? data.icon_url : existing.icon_url,
       data.preview_url !== undefined ? data.preview_url : existing.preview_url,
       data.sort_order ?? existing.sort_order,
       data.enabled !== undefined ? (data.enabled ? 1 : 0) : existing.enabled,
-      data.health_check_url !== undefined ? data.health_check_url : existing.health_check_url,
+      data.health_check_url !== undefined
+        ? data.health_check_url
+          ? normalizeHttpUrl(data.health_check_url)
+          : null
+        : existing.health_check_url,
       data.group_id !== undefined ? data.group_id : existing.group_id,
       data.auth_username !== undefined ? data.auth_username : existing.auth_username,
       data.auth_password !== undefined ? data.auth_password : existing.auth_password,

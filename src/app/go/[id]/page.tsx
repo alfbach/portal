@@ -16,6 +16,7 @@ type LaunchInfo = {
   targetUrl: string;
   hasAuth: boolean;
   username: string | null;
+  bridgeUrl?: string | null;
 };
 
 export default function GoPage() {
@@ -36,18 +37,14 @@ export default function GoPage() {
         if (cancelled) return;
         setInfo(data);
 
-        // Open destination in this window (already a separate tab via window.open)
-        // Prefer credentialed URL when basic auth is configured.
-        window.location.replace(data.targetUrl);
-
-        // Some browsers strip userinfo from URLs; fall back to plain URL shortly after.
-        if (data.hasAuth) {
-          window.setTimeout(() => {
-            if (document.visibilityState !== "hidden") {
-              window.location.replace(data.url);
-            }
-          }, 1200);
+        // Credentialed links must use the auth bridge — browsers remove
+        // userinfo from URLs and Cockpit needs a /cockpit/login session.
+        if (data.hasAuth && data.bridgeUrl) {
+          window.location.replace(data.bridgeUrl);
+          return;
         }
+
+        window.location.replace(data.targetUrl || data.url);
       } catch {
         if (!cancelled) setError("Could not open link");
       }
@@ -80,7 +77,7 @@ export default function GoPage() {
       >
         <EmptyStateBody>
           {info?.hasAuth
-            ? "Sending stored credentials and opening in this window."
+            ? "Signing in with stored credentials via the auth bridge…"
             : "Redirecting to the target page."}
         </EmptyStateBody>
       </EmptyState>

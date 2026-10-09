@@ -29,7 +29,10 @@ export function LinkCard({ link }: { link: Link; index?: number }) {
         selectableActions={{
           selectableActionAriaLabel: `Open ${link.title} in a new window`,
           onClickAction: () => {
-            window.open(`/go/${link.id}`, "_blank", "noopener,noreferrer");
+            // Auth links go through /bridge so credentials can be injected
+            // server-side (browsers strip user:pass@host URLs).
+            const href = hasAuth ? `/bridge/${link.id}/` : `/go/${link.id}`;
+            window.open(href, "_blank", "noopener,noreferrer");
           },
         }}
       >
